@@ -25,11 +25,11 @@ parser.add_argument('-s', type=int, default=500)
 args = parser.parse_args()
 genome = None
 
-if args.i.endswith('.gtf'):
+#if args.i.endswith('.gtf'):
 
-elif args.i.endswith('.bed') or args.i.endswith('.xls'):
-    size = args.s
-    for fn in args.i:
+#if args.i.endswith('.bed') or args.i.endswith('.xls'):
+size = args.s
+for fn in args.i:
         name = os.path.basename(fn).split('.')[0]
         sys.stderr.write(name + '\n')
         fn_out = name + '.fa'
