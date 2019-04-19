@@ -70,13 +70,17 @@ parser.add_argument('-n', type=int, default=10)
 args = parser.parse_args()
 genes = load_gene_location(args.gtf)
 # print(list(genes.values())[0:10])
-# num_total = len([g for g in genes.values() if re.match('chr\\d', g[1])])
+num_total = len([g for g in genes.values() if re.match('chr\\d', g[1])])
 # print(num_total)
 samples = []
 data = {}
 used_genes = set()
 for fn in args.i:
-    name = os.path.basename(fn).split('.')[0]
+    basename = os.path.basename(fn)
+    if basename.find('.') >= 0:
+        name = basename[:basename.rfind('.')]
+    else:
+        name = basename
     genes = load_peaks(fn, args.upstream, args.downstream, True)
     print(name, len(genes))
     if len(genes) > 0:
@@ -85,7 +89,7 @@ for fn in args.i:
         for g in genes: used_genes.add(g)
 N = len(used_genes)
 M = len(samples)
-# matrix = np.zeros((N, M))
+matrix = np.zeros((N, M), dtype=np.float)
 genes = list(sorted(used_genes))
 vals = []
 for i, s in enumerate(samples):
@@ -93,6 +97,34 @@ for i, s in enumerate(samples):
     for j, g in enumerate(genes):
         vals.append(int(g in datum))
 df = pd.DataFrame(np.array(vals).reshape(N, M), index=genes, columns=samples)
+
+for i, si in enumerate(samples):
+    for j in range(i + 1, len(samples)):
+        sj = samples[j]
+        n_0 = len(data[si])
+        n0_ = len(data[sj])
+        n00 = 0
+        for g in data[si]:
+            if g in data[sj]:
+                n00 += 1
+        n01 = n_0 - n00
+        n10 = n0_ - n00
+        n11 = num_total - n00 - n01 - n10
+        n_1 = n01 + n11
+        n1_ = n10 + n11
+        jaccard = n00 / (n_0 + n0_ - n00)
+        matrix[i][j] = matrix[j][i] = jaccard
+        # print(i, j, n00, n01, n10, n11)
+        odds = float(n00 * n11) / (n01 * n10)
+        phi = float(n11 * n00 - n01 * n10) / np.sqrt(n_0 * n0_ * n_1 * n1_)
+        print(i, j, jaccard, odds, phi)
+
+print(matrix)
+
+import scipy.cluster.hierarchy
+Z = scipy.cluster.hierarchy.linkage(df.T, method='ward', metric='euclidean')
+print(Z)
+exit()    
 
 print(df.shape)
 import sklearn.cluster
@@ -161,27 +193,23 @@ for label in range(n_clusters):
 
 
 exit()
-import scipy.cluster.hierarchy
-Z = scipy.cluster.hierarchy.linkage(df.T, method='ward', metric='euclidean')
-print(Z)
-exit()    
 
-# for i, si in enumerate(samples):
-#     for j, sj in enumerate(samples):
-#         if i < j:
-#             matrix[j][i] = matrix[i][j]
-#         else:
-#             n_0 = len(si)
-#             n0_ = len(sj)
-#             n00 = 0
-#             for g in si:
-#                 if g in sj:
-#                     n00 += 1
-#             n01 = n_0 - n00
-#             n10 = n0_ - n00
-#             n11 = num_total - n00 - n01 - n10
-#             jaccard = n00 / (n_0 + n0_ - n00)
-#             matrix[i][j] = jaccard
+for i, si in enumerate(samples):
+    for j, sj in enumerate(samples):
+        if i < j:
+            matrix[j][i] = matrix[i][j]
+        else:
+            n_0 = len(si)
+            n0_ = len(sj)
+            n00 = 0
+            for g in si:
+                if g in sj:
+                    n00 += 1
+            n01 = n_0 - n00
+            n10 = n0_ - n00
+            n11 = num_total - n00 - n01 - n10
+            jaccard = n00 / (n_0 + n0_ - n00)
+            matrix[i][j] = jaccard
 
 print(scipy.cluster.hierarchy.dendrogram(Z))
 
