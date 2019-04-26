@@ -19,8 +19,7 @@ with open('/mnt/smb/tae/torii/nextseq/description.txt') as fi:
                 l2s[label] = name, slot
             s2l[name].append(labels)
 #            s2l[name] = labels
-#print(s2l)
-#print(l2s)
+        
 bamdir = 'bamfiles'
 #bamdir  = '.'
 bamfiles = {}
@@ -41,6 +40,8 @@ genomesize = {}
 centromere = []
 dstdir = 'macs2'
 dstdir = 'peakcall'
+dstdir = 'THS'
+
 if not os.path.exists(dstdir): os.makedirs(dstdir)
 
 nuc_len = 0
@@ -97,6 +98,7 @@ for name, fns in bamfiles.items():
 
     cmd = ['macs2', 'callpeak', '-f', 'BAMPE', '--outdir', dstdir, '-g', str(nuc_len), '--shift', '100', '--extsize', '200', '-n', name, '-t'] + nucbams
     sys.stderr.write(' '.join(cmd) + '\n')
+
     subprocess.Popen(cmd).wait()
 
     for fn in nucbams:
