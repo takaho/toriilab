@@ -1,12 +1,18 @@
 import os, sys, subprocess, re
 import tempfile
 import argparse
+import pandas as pd
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-i', default=None)
 parser.add_argument('-o', default=None)
+parser.add_argument('--normalize', default=None, help='None(defaule)/quantile/median')
 # parser.add_argument('-a', default='annotation.tsv')
 args = parser.parse_args()
+
+def quantile_normalization(matrix):
+    ranks = matrix.stack().groupby(matrix.rank(method='first').stack().astype(int)).mean()
+    return matrix.rank(method='min').stack().astype(int).map(ranks).unstack()
 
 # filename = 'atac_500bp.tsv'
 filename = sys.argv[1]
@@ -20,13 +26,31 @@ filename_output = args.o if args.o is not None else filename + '.out'
 filename_annotation = tempfile.mktemp('.tsv')
 filename_script = tempfile.mktemp('.R')
 
-with open(filename) as fi, open(filename_annotation, 'w') as fo:
+normalization = args.normalize
+rawdata = pd.read_csv(args.i, sep='\t', index_col=0)
+filename_data = None
+if normalization is not None:
+    filename_data = 'normalized.tsv'
+    if normalization == 'quantile':
+        data = quantile_normalization(rawdata)
+    # elif normalization == 'median':
+    #     data = rawdata
+    else:
+        raise Exception('normalization "{}" is not supported')
+    data.to_csv(filename_data, sep='\t', float_format='%.0f')
+else:
+    data = rawdata
+    filename_data = filename
+
+# with open(filename) as fi, open(filename_annotation, 'w') as fo:
+with open(filename_annotation, 'w') as fo:
     fo.write('ID\tSample\tCondition\tTime\tBatch\n')
-    header = fi.readline().split('\t')
+    header = data.columns
+    # header = fi.readline().split('\t')
     # print(header)
     timepoints = []
     states = {}
-    for item in header[1:]:
+    for item in header:
         item = item.strip()
         state, rep = item.split('_', 1)
         rep = re.sub('rep', '', rep)
@@ -148,7 +172,7 @@ objectImpulseDE2 <- runImpulseDE2(
 head(objectImpulseDE2$dfImpulseDE2Results)
 write.table(objectImpulseDE2$dfImpulseDE2Results, "{2}", sep="\t", col.names=T, quote=F)
 
-""".format(filename, filename_annotation, filename_output)
+""".format(filename_data, filename_annotation, filename_output)
 
 with open(filename_script, 'w') as fo:
     # print(script)
@@ -172,3 +196,6 @@ subprocess.Popen(['Rscript', filename_script]).wait()
 
 os.unlink(filename_script)
 os.unlink(filename_annotation)
+if normalization is not None:
+    #os.unlink(filename_data)
+    pass
