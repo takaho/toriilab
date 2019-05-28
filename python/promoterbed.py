@@ -4,6 +4,8 @@ import os, sys, re, hashlib, gzip, pickle
 # import pandas as pd
 
 def load_gene_location(gtf, cache=None):
+    """ return dict {key:gene_id, value: (name, chrom, start, stop, orientation) }
+    """
     if cache is None:
         md5 = hashlib.md5()
         md5.update(os.path.abspath(gtf).encode('utf-8'))
@@ -33,26 +35,26 @@ def load_gene_location(gtf, cache=None):
         pickle.dump(genes, fz)
     return genes
 
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    # parser.add_argument('-i', nargs='+' )
+    parser.add_argument('--upstream', type=int, default=500)
+    parser.add_argument('--downstream', type=int, default=0)
+    parser.add_argument('--gtf', default='/mnt/smb/tae/tair10/Arabidopsis_thaliana.TAIR10.40.chrm.gtf')
+    parser.add_argument('--verbose', action='store_true')
+    # parser.add_argument('-n', type=int, default=10)
+    args = parser.parse_args()
+    genes = load_gene_location(args.gtf)
+    upstream = args.upstream    
+    downstream = args.downstream
 
-parser = argparse.ArgumentParser()
-# parser.add_argument('-i', nargs='+' )
-parser.add_argument('--upstream', type=int, default=500)
-parser.add_argument('--downstream', type=int, default=0)
-parser.add_argument('--gtf', default='/mnt/smb/tae/tair10/Arabidopsis_thaliana.TAIR10.40.chrm.gtf')
-parser.add_argument('--verbose', action='store_true')
-# parser.add_argument('-n', type=int, default=10)
-args = parser.parse_args()
-genes = load_gene_location(args.gtf)
-upstream = args.upstream    
-downstream = args.downstream
-
-for gene, loc in genes.items():
-    gene_name, chrom, start, stop, strand = loc
-    if gene != gene_name:
-        gene_name = '{}({})'.format(gene, gene_name)
-    else:
-        gene_name = gene
-    if strand == '+':
-        print('{}\t{}\t{}\t{}'.format(chrom, start - upstream, start + downstream, gene_name))
-    else:
-        print('{}\t{}\t{}\t{}'.format(chrom, stop - downstream, stop + upstream, gene_name))
+    for gene, loc in genes.items():
+        gene_name, chrom, start, stop, strand = loc
+        if gene != gene_name:
+            gene_name = '{}({})'.format(gene, gene_name)
+        else:
+            gene_name = gene
+        if strand == '+':
+            print('{}\t{}\t{}\t{}'.format(chrom, start - upstream, start + downstream, gene_name))
+        else:
+            print('{}\t{}\t{}\t{}'.format(chrom, stop - downstream, stop + upstream, gene_name))

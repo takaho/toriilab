@@ -10,9 +10,22 @@ parser.add_argument('--normalize', default=None, help='None(defaule)/quantile/me
 # parser.add_argument('-a', default='annotation.tsv')
 args = parser.parse_args()
 
-def quantile_normalization(matrix):
-    ranks = matrix.stack().groupby(matrix.rank(method='first').stack().astype(int)).mean()
-    return matrix.rank(method='min').stack().astype(int).map(ranks).unstack()
+# def quantile_normalization(matrix):
+#     ranks = matrix.stack().groupby(matrix.rank(method='first').stack().astype(int)).mean()
+#     return matrix.rank(method='min').stack().astype(int).map(ranks).unstack()
+def quantile_normalization(df):
+
+    # columns from the original dataframe not specified in cols
+    non_numeric = df.filter(items=list(filter(lambda col: col not in df.columns, list(df))))
+
+    rank_mean = df.stack().groupby(df.rank(method='first').stack().astype(int)).mean()  
+
+    norm = df.rank(method='min').stack().astype(int).map(rank_mean).unstack()
+
+
+    result = pd.concat([norm, non_numeric], axis=1)
+    return result
+
 
 # filename = 'atac_500bp.tsv'
 filename = sys.argv[1]
