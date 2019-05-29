@@ -232,15 +232,16 @@ def main():
     else:
         display_mode = 'mean of conditoin'
 
+    pthr = 0.05
     preferences = """Input : {input}
-    Output : {output}
-    Graph : {graph}
-    Clusters : {clusters}
-    Normalization : {normalization}
-    Index : {index}
-    Values : {values}
-    Expression : {expression}
-    """.format(input=filename_input, graph=filename_graph, output=filename_output, clusters=n_clusters, normalization=normalization, index=index_mode, values=display_mode, expression=filename_expression)
+Output : {output}
+Graph : {graph}
+Clusters : {clusters}
+Normalization : {normalization}
+Index : {index}
+Values : {values}
+Expression : {expression}
+""".format(input=filename_input, graph=filename_graph, output=filename_output, clusters=n_clusters, normalization=normalization, index=index_mode, values=display_mode, expression=filename_expression)
     with open(os.path.join(outdir, 'run_info.txt'), 'w') as fo:
         fo.write(preferences)
     if verbose:
@@ -296,7 +297,7 @@ def main():
     significant = []
     valmat = []
     pvalues = []
-
+    pthr = 0.01
     for i, elem in enumerate(matrix.index):
         row = values[i]
         col = 0
@@ -321,11 +322,13 @@ def main():
             #         print(elem)
             #         pval = 1.0
             #         exit()
+        # if pval < 0.01:
+        #     print(elem, vmin, vmax, pval, valset)
         g_ = matrix.index[i]
         # if g_.find('(GC1)') >= 0 or g_.find('ATML1') >= 0 or g_.find('SPCH') >= 0 or g_.find('MUTE') >= 0 or g_.find('FAMA') >= 0:
         #     print(g_.split(';')[0], vmin, vmax, pval, valset)
         pvalues.append(pval)
-        if pval < 0.01:# and vmax > vmin * 2.0:
+        if pval < pthr:#0.01:# and vmax > vmin * 2.0:
         # if pval < 0.01:# and vmax > vmin * 2.0:
             ostr = matrix.index[i]
             for v in r_:
@@ -334,13 +337,21 @@ def main():
             significant.append(elem)#matrix.index[i])
         else:
             g_ = matrix.index[i]
-            if g_.find('(GC1)') >= 0 or g_.find('(SPCH)') >= 0 or g_.find('(MUTE)') >= 0 or g_.find('(ATML1)') >= 0 or g_.find('(FAMA)') >= 0:
+            if g_.find('(SPCH)') >= 0 or g_.find('(MUTE)') >= 0 or g_.find('(ATML1)') >= 0 or g_.find('(FAMA)') >= 0:
                 significant.append(g_)            
         data[elem] = r_
 
-
+    preferences = """Genes : {num_genes}
+P-value : {pvalue}
+Significant genes : {num_significant}
+   """.format(num_genes = len(genic), num_significant=len(significant), pvalue=pthr) 
+    with open(os.path.join(outdir, 'run_info.txt'), 'a') as fo:
+        fo.write(preferences)
     if verbose:
-        sys.stderr.write('number of significant elements : {}\n'.format(len(significant)))
+        sys.stderr.write(preferences)
+
+    # if verbose:
+    #     sys.stderr.write('number of significant elements : {}\n'.format(len(significant)))
 
     # import statsmodels.stats.multitest
     # results = statsmodels.stats.multitest.multipletests(pvalues, alpha=0.1)
@@ -443,7 +454,7 @@ def main():
         # print(stack[i])
         slope[i] = np.argmax(stack[i]) * 10 + scipy.stats.linregress(np.arange(n_points), stack[i] / max(1, len(clusters[i])))[0]
     # print(slope)
-    ordered_clusters = sorted(np.arange(0, n_clusters), key=lambda x_:slope[x_], reverse=True)
+    ordered_clusters = sorted(np.arange(0, n_clusters), key=lambda x_:slope[x_], reverse=False)
     # print(ordered_clusters)
     # print([len(clusters[x_]) for x_ in ordered_clusters])
     markers = '(MUTE)', '(SPCH)', '(FAMA)', '(ATML1)', '(GASA9)' # , '(GC1)'
@@ -465,7 +476,8 @@ def main():
                 gene, loc = location.split(';', 1)
                 fo_dump.write('{}\t{}\t{}'.format(cn, gene, loc))
                 display_row = display_data.loc[location].values
-                for val_ in display_row:
+                rawvalues = matrix.loc[location].values
+                for val_ in rawvalues:#display_row:
                     fo_dump.write('\t{:.3f}'.format(val_))
                 for m in markers:
                     if location.find(m) >= 0:
@@ -525,7 +537,8 @@ def main():
                 #     sys.stderr.write('cluster_size:{}, num_expr:{}, expr:{:.3f}'.format(cluster_size, n_expr, [int(x*100) for x in np.mean(emat, axis=0)]))
     import plotly.graph_objs as go
     import plotly, plotly.offline
-    fig = go.Figure([go.Heatmap(x=display_data.columns, y=y, z=z)])
+    layout = go.Layout(yaxis=dict(autorange='reversed'))
+    fig = go.Figure([go.Heatmap(x=display_data.columns, y=y, z=z)], layout)
     plotly.offline.plot(fig, filename=filename_graph)
 
 if __name__ == '__main__':
